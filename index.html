@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clock Learning Adventure</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Nunito', sans-serif; }
+    
+    .clock-face {
+      background: linear-gradient(145deg, #fff5f5 0%, #f0f9ff 50%, #fefce8 100%);
+      box-shadow: 
+        0 20px 60px rgba(0,0,0,0.15),
+        inset 0 2px 10px rgba(255,255,255,0.8),
+        inset 0 -2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .hand-hour {
+      transform-origin: 50% 85%;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .hand-minute {
+      transform-origin: 50% 85%;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .hand-second {
+      transform-origin: 50% 80%;
+    }
+    
+    @keyframes starBurst {
+      0% { transform: scale(0) rotate(0deg); opacity: 1; }
+      50% { transform: scale(1.5) rotate(180deg); opacity: 1; }
+      100% { transform: scale(1) rotate(360deg); opacity: 1; }
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes confetti {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100px) rotate(720deg); opacity: 0; }
+    }
+    
+    .star-animation {
+      animation: starBurst 0.6s ease-out forwards;
+    }
+    
+    .bounce-animation {
+      animation: bounce 0.5s ease-in-out 3;
+    }
+    
+    .btn-playful {
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+    }
+    
+    .btn-playful:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+    }
+    
+    .progress-fill {
+      transition: width 0.5s ease-out;
+    }
+    
+    .confetti-piece {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      animation: confetti 1s ease-out forwards;
+    }
+    
+    .tooltip {
+      position: relative;
+    }
+    
+    .tooltip::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    
+    .tooltip:hover::after {
+      opacity: 1;
+    }
+    
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      body { background: white !important; }
+    }
+    
+    .print-only { display: none; }
+    
+    .tab-active {
+      background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+      color: white;
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full bg-gradient-to-br from-purple-100 via-pink-50 to-yellow-50 overflow-auto">
+  <div id="app-container" class="w-full min-h-full p-4 md:p-6"><!-- Header -->
+   <header class="text-center mb-6 no-print">
+    <h1 id="main-title" class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 bg-clip-text text-transparent drop-shadow-sm">🕐 Clock Learning Adventure 🌟</h1>
+    <p class="text-gray-600 mt-2 text-lg">Learn to tell time the fun way!</p>
+   </header><!-- Main Content -->
+   <div class="max-w-6xl mx-auto"><!-- Tabs -->
+    <div class="flex justify-center gap-2 mb-6 no-print flex-wrap"><button onclick="switchTab('learn')" id="tab-learn" class="tab-active px-4 py-2 rounded-full font-bold text-sm md:text-base btn-playful"> 📚 Learn </button> <button onclick="switchTab('practice')" id="tab-practice" class="px-4 py-2 rounded-full font-bold bg-white text-gray-600 text-sm md:text-base btn-playful"> 🧠 Practice </button> <button onclick="switchTab('worksheet')" id="tab-worksheet" class="px-4 py-2 rounded-full font-bold bg-white text-gray-600 text-sm md:text-base btn-playful"> 🖨️ Worksheet </button>
+    </div><!-- Score Bar -->
+    <div class="bg-white rounded-2xl p-3 mb-6 shadow-lg flex items-center justify-between flex-wrap gap-2 no-print">
+     <div class="flex items-center gap-3"><span class="text-2xl">⭐</span> <span id="star-count" class="text-2xl font-bold text-yellow-500">0</span> <span class="text-gray-500">stars</span>
+     </div>
+     <div class="flex-1 mx-4 min-w-32">
+      <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+       <div id="progress-bar" class="h-full bg-gradient-to-r from-green-400 to-emerald-500 progress-fill" style="width: 0%"></div>
+      </div>
+      <p class="text-xs text-center text-gray-500 mt-1"><span id="correct-count">0</span>/10 to Level Up!</p>
+     </div>
+     <div id="level-badge" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+      Level 1
+     </div>
+    </div><!-- Learn Tab -->
+    <div id="learn-tab" class="tab-content">
+     <div class="grid md:grid-cols-2 gap-6"><!-- Clock Section -->
+      <div class="bg-white rounded-3xl p-6 shadow-xl">
+       <div class="flex justify-center">
+        <div class="relative"><!-- Main Clock -->
+         <svg id="main-clock" width="280" height="280" viewbox="0 0 280 280" class="clock-face rounded-full"><!-- Clock face background --> <circle cx="140" cy="140" r="135" fill="url(#clockGradient)" stroke="#e5e7eb" stroke-width="4" /> <!-- Gradient definitions --> <defs>
+           <lineargradient id="clockGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#fef3c7" />
+            <stop offset="50%" style="stop-color:#fce7f3" />
+            <stop offset="100%" style="stop-color:#dbeafe" />
+           </lineargradient>
+           <lineargradient id="hourGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#3b82f6" />
+            <stop offset="100%" style="stop-color:#1d4ed8" />
+           </lineargradient>
+           <lineargradient id="minuteGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#ef4444" />
+            <stop offset="100%" style="stop-color:#b91c1c" />
+           </lineargradient>
+          </defs> <!-- Minute tick marks --> <g id="tick-marks"></g> <!-- Numbers --> <g id="clock-numbers" font-family="Nunito" font-weight="700" font-size="22" fill="#374151" text-anchor="middle"></g> <!-- Hour hand --> <g id="hour-hand" class="hand-hour">
+           <rect x="133" y="80" width="14" height="70" rx="7" fill="url(#hourGradient)" />
+           <circle cx="140" cy="140" r="8" fill="#1d4ed8" />
+          </g> <!-- Minute hand --> <g id="minute-hand" class="hand-minute">
+           <rect x="136" y="45" width="8" height="100" rx="4" fill="url(#minuteGradient)" />
+           <circle cx="140" cy="140" r="6" fill="#b91c1c" />
+          </g> <!-- Second hand --> <g id="second-hand" class="hand-second" style="display: none;">
+           <rect x="138" y="35" width="4" height="110" rx="2" fill="#eab308" />
+           <circle cx="140" cy="140" r="4" fill="#ca8a04" />
+          </g> <!-- Center dot --> <circle cx="140" cy="140" r="10" fill="#374151" /> <circle cx="140" cy="140" r="6" fill="#9ca3af" />
+         </svg><!-- Hand Labels -->
+         <div class="absolute -left-4 top-1/2 transform -translate-y-1/2 -translate-x-full">
+          <div class="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-sm font-bold whitespace-nowrap shadow">
+           ← Short Hand = Hour
+          </div>
+         </div>
+         <div class="absolute -right-4 top-1/3 transform translate-x-full">
+          <div class="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-sm font-bold whitespace-nowrap shadow">
+           Long Hand = Minute →
+          </div>
+         </div>
+        </div>
+       </div><!-- Current Time Display -->
+       <div class="text-center mt-4">
+        <div id="time-display" class="text-4xl font-bold text-gray-700">
+         12:00
+        </div>
+        <div id="period-display" class="text-xl text-purple-500 font-semibold">
+         AM
+        </div>
+       </div><!-- Second Hand Toggle -->
+       <div class="flex justify-center mt-3"><label class="flex items-center gap-2 cursor-pointer"> <input type="checkbox" id="show-seconds" class="w-5 h-5 rounded" onchange="toggleSecondHand()"> <span class="text-sm text-gray-600">Show second hand (yellow)</span> </label>
+       </div>
+      </div><!-- Control Panel -->
+      <div class="space-y-4"><!-- Time Input -->
+       <div class="bg-white rounded-2xl p-5 shadow-lg">
+        <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">✏️ Set the Time</h3>
+        <div class="flex items-center gap-2 flex-wrap"><input type="number" id="hour-input" min="1" max="12" placeholder="HH" class="w-16 h-12 text-center text-2xl font-bold border-2 border-purple-200 rounded-xl focus:border-purple-500 focus:outline-none"> <span class="text-3xl font-bold text-gray-400">:</span> <input type="number" id="minute-input" min="0" max="59" placeholder="MM" class="w-16 h-12 text-center text-2xl font-bold border-2 border-purple-200 rounded-xl focus:border-purple-500 focus:outline-none">
+         <div class="flex gap-1"><button id="am-btn" onclick="setPeriod('AM')" class="px-3 py-2 rounded-lg font-bold text-sm bg-purple-500 text-white">AM</button> <button id="pm-btn" onclick="setPeriod('PM')" class="px-3 py-2 rounded-lg font-bold text-sm bg-gray-200 text-gray-600">PM</button>
+         </div>
+        </div>
+        <div class="flex gap-2 mt-3"><button onclick="clearTimeInput()" class="flex-1 py-2 bg-gray-100 text-gray-600 rounded-xl font-bold btn-playful hover:bg-gray-200"> 🗑️ Clear </button> <button onclick="setTimeFromInput()" class="flex-1 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold btn-playful hover:opacity-90"> ⏰ Set Time </button>
+        </div>
+       </div><!-- Random Time Generator -->
+       <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-5 shadow-lg border-2 border-amber-200">
+        <h3 class="text-lg font-bold text-amber-700 mb-3 flex items-center gap-2">🎲 Random Time Generator</h3><button onclick="generateRandomTime()" class="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl font-bold text-lg btn-playful hover:opacity-90"> 🎲 Generate Random Time! </button>
+        <p id="random-time-text" class="text-center mt-2 text-amber-600 font-semibold"></p>
+       </div><!-- Difficulty Selector -->
+       <div class="bg-white rounded-2xl p-5 shadow-lg">
+        <h3 class="text-lg font-bold text-gray-700 mb-3">📊 Difficulty Mode</h3>
+        <div class="grid grid-cols-3 gap-2"><button onclick="setDifficulty('beginner')" id="diff-beginner" class="py-3 rounded-xl font-bold text-sm bg-green-500 text-white btn-playful"> 🟢 Beginner </button> <button onclick="setDifficulty('intermediate')" id="diff-intermediate" class="py-3 rounded-xl font-bold text-sm bg-gray-200 text-gray-600 btn-playful"> 🟡 Medium </button> <button onclick="setDifficulty('advanced')" id="diff-advanced" class="py-3 rounded-xl font-bold text-sm bg-gray-200 text-gray-600 btn-playful"> 🔴 Advanced </button>
+        </div>
+        <p id="difficulty-desc" class="text-sm text-gray-500 text-center mt-2">Full hours only (3:00, 5:00)</p>
+       </div>
+      </div>
+     </div>
+    </div><!-- Practice Tab -->
+    <div id="practice-tab" class="tab-content hidden">
+     <div class="max-w-2xl mx-auto">
+      <div class="bg-white rounded-3xl p-6 shadow-xl">
+       <h2 class="text-2xl font-bold text-center text-purple-600 mb-4">🧠 Practice Reading Time!</h2><!-- Practice Clock -->
+       <div class="flex justify-center mb-4">
+        <svg id="practice-clock" width="240" height="240" viewbox="0 0 280 280" class="clock-face rounded-full"><circle cx="140" cy="140" r="135" fill="url(#clockGradient)" stroke="#e5e7eb" stroke-width="4" /> <g id="practice-ticks"></g> <g id="practice-numbers" font-family="Nunito" font-weight="700" font-size="22" fill="#374151" text-anchor="middle"></g> <g id="practice-hour-hand" class="hand-hour">
+          <rect x="133" y="80" width="14" height="70" rx="7" fill="url(#hourGradient)" />
+         </g> <g id="practice-minute-hand" class="hand-minute">
+          <rect x="136" y="45" width="8" height="100" rx="4" fill="url(#minuteGradient)" />
+         </g> <circle cx="140" cy="140" r="10" fill="#374151" /> <circle cx="140" cy="140" r="6" fill="#9ca3af" />
+        </svg>
+       </div><!-- Question -->
+       <p id="practice-prompt" class="text-xl font-bold text-center text-gray-700 mb-4">What time is this? 🤔</p><!-- Answer Input -->
+       <div class="flex items-center justify-center gap-2 mb-4"><input type="number" id="answer-hour" min="1" max="12" placeholder="HH" class="w-16 h-14 text-center text-2xl font-bold border-3 border-purple-300 rounded-xl focus:border-purple-500 focus:outline-none"> <span class="text-4xl font-bold text-gray-400">:</span> <input type="number" id="answer-minute" min="0" max="59" placeholder="MM" class="w-16 h-14 text-center text-2xl font-bold border-3 border-purple-300 rounded-xl focus:border-purple-500 focus:outline-none">
+       </div><button onclick="checkAnswer()" class="w-full py-4 bg-gradient-to-r from-green-400 to-emerald-500 text-white rounded-xl font-bold text-xl btn-playful hover:opacity-90 mb-4"> ✅ Check Answer </button> <!-- Feedback Area -->
+       <div id="feedback-area" class="text-center min-h-20"><!-- Feedback will appear here -->
+       </div><!-- Hint Area -->
+       <div id="hint-area" class="hidden bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mt-4">
+        <p class="text-yellow-700 font-semibold">💡 Hint:</p>
+        <p id="hint-text" class="text-yellow-600"></p>
+       </div><!-- Next Question Button --> <button onclick="newPracticeQuestion()" class="w-full py-3 bg-purple-100 text-purple-600 rounded-xl font-bold mt-4 btn-playful hover:bg-purple-200"> ➡️ Next Question </button>
+      </div>
+     </div>
+    </div><!-- Worksheet Tab -->
+    <div id="worksheet-tab" class="tab-content hidden">
+     <div class="bg-white rounded-3xl p-6 shadow-xl print:shadow-none">
+      <div class="flex justify-between items-center mb-6 no-print">
+       <h2 class="text-2xl font-bold text-purple-600">🖨️ Printable Worksheet</h2><button onclick="window.print()" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold btn-playful"> 🖨️ Print Worksheet </button>
+      </div>
+      <div class="print:block">
+       <h1 class="text-2xl font-bold text-center mb-2">⏰ Tell the Time! ⏰</h1>
+       <p class="text-center text-gray-500 mb-6">Name: _________________ Date: _________</p><!-- Section 1: What time is it? -->
+       <div class="mb-8">
+        <h3 class="text-lg font-bold text-purple-600 mb-4">📖 What time is shown? Write the time below each clock.</h3>
+        <div id="worksheet-clocks" class="grid grid-cols-5 gap-4"><!-- Generated worksheet clocks -->
+        </div>
+       </div><!-- Section 2: Draw the hands -->
+       <div>
+        <h3 class="text-lg font-bold text-purple-600 mb-4">✏️ Draw the clock hands for each time.</h3>
+        <div id="worksheet-draw" class="grid grid-cols-5 gap-4"><!-- Generated draw exercises -->
+        </div>
+       </div>
+      </div><button onclick="generateWorksheet()" class="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl font-bold mt-6 btn-playful no-print"> 🔄 Generate New Worksheet </button>
+     </div>
+    </div>
+   </div><!-- Level Up Modal -->
+   <div id="level-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-3xl p-8 max-w-md mx-4 text-center transform scale-100 animate-bounce">
+     <div class="text-6xl mb-4">
+      🎉🏆🎉
+     </div>
+     <h2 class="text-3xl font-bold text-purple-600 mb-2">Level Complete!</h2>
+     <p class="text-gray-600 mb-4">Amazing job! You've leveled up!</p>
+     <div id="new-level" class="text-4xl font-bold text-amber-500 mb-4">
+      Level 2
+     </div><button onclick="closeModal()" class="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold btn-playful"> Continue! 🚀 </button>
+    </div>
+   </div><!-- Confetti Container -->
+   <div id="confetti-container" class="fixed inset-0 pointer-events-none z-40"></div>
+  </div>
+  <script>
+    // Default configuration
+    const defaultConfig = {
+      main_title: '🕐 Clock Learning Adventure 🌟',
+      practice_prompt: 'What time is this? 🤔',
+      success_message: 'Great Job! 🌟',
+      try_again_message: 'Try Again! 💪',
+      background_color: '#faf5ff',
+      accent_color: '#8b5cf6',
+      text_color: '#374151',
+      button_color: '#a855f7',
+      highlight_color: '#f59e0b',
+      font_family: 'Nunito',
+      font_size: 16
+    };
+    
+    // State
+    let currentHour = 12;
+    let currentMinute = 0;
+    let currentPeriod = 'AM';
+    let difficulty = 'beginner';
+    let stars = 0;
+    let correctAnswers = 0;
+    let level = 1;
+    let practiceHour = 0;
+    let practiceMinute = 0;
+    let showSeconds = false;
+    let secondInterval = null;
+    
+    // Initialize SDK
+    async function initApp() {
+      if (window.elementSdk) {
+        await window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (config) => {
+            applyConfig(config);
+          },
+          mapToCapabilities: (config) => ({
+            recolorables: [
+              {
+                get: () => config.background_color || defaultConfig.background_color,
+                set: (value) => window.elementSdk.setConfig({ background_color: value })
+              },
+              {
+                get: () => config.accent_color || defaultConfig.accent_color,
+                set: (value) => window.elementSdk.setConfig({ accent_color: value })
+              },
+              {
+                get: () => config.text_color || defaultConfig.text_color,
+                set: (value) => window.elementSdk.setConfig({ text_color: value })
+              },
+              {
+                get: () => config.button_color || defaultConfig.button_color,
+                set: (value) => window.elementSdk.setConfig({ button_color: value })
+              },
+              {
+                get: () => config.highlight_color || defaultConfig.highlight_color,
+                set: (value) => window.elementSdk.setConfig({ highlight_color: value })
+              }
+            ],
+            borderables: [],
+            fontEditable: {
+              get: () => config.font_family || defaultConfig.font_family,
+              set: (value) => window.elementSdk.setConfig({ font_family: value })
+            },
+            fontSizeable: {
+              get: () => config.font_size || defaultConfig.font_size,
+              set: (value) => window.elementSdk.setConfig({ font_size: value })
+            }
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ['main_title', config.main_title || defaultConfig.main_title],
+            ['practice_prompt', config.practice_prompt || defaultConfig.practice_prompt],
+            ['success_message', config.success_message || defaultConfig.success_message],
+            ['try_again_message', config.try_again_message || defaultConfig.try_again_message]
+          ])
+        });
+      }
+      
+      initClocks();
+      applyConfig(window.elementSdk?.config || defaultConfig);
+    }
+    
+    function applyConfig(config) {
+      const bgColor = config.background_color || defaultConfig.background_color;
+      const accentColor = config.accent_color || defaultConfig.accent_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const buttonColor = config.button_color || defaultConfig.button_color;
+      const highlightColor = config.highlight_color || defaultConfig.highlight_color;
+      const fontFamily = config.font_family || defaultConfig.font_family;
+      const fontSize = config.font_size || defaultConfig.font_size;
+      
+      // Apply background
+      document.body.style.background = `linear-gradient(135deg, ${bgColor} 0%, ${adjustColor(bgColor, 10)} 50%, ${adjustColor(bgColor, 20)} 100%)`;
+      
+      // Apply title
+      const mainTitle = document.getElementById('main-title');
+      if (mainTitle) {
+        mainTitle.textContent = config.main_title || defaultConfig.main_title;
+        mainTitle.style.fontFamily = `${fontFamily}, sans-serif`;
+        mainTitle.style.fontSize = `${fontSize * 2}px`;
+      }
+      
+      // Apply practice prompt
+      const practicePrompt = document.getElementById('practice-prompt');
+      if (practicePrompt) {
+        practicePrompt.textContent = config.practice_prompt || defaultConfig.practice_prompt;
+        practicePrompt.style.fontFamily = `${fontFamily}, sans-serif`;
+        practicePrompt.style.color = textColor;
+      }
+      
+      // Apply fonts globally
+      document.body.style.fontFamily = `${fontFamily}, sans-serif`;
+      
+      // Apply text color to various elements
+      document.querySelectorAll('h1, h2, h3, p, span, label').forEach(el => {
+        if (!el.closest('.bg-gradient-to-r')) {
+          el.style.color = textColor;
+        }
+      });
+      
+      // Apply button colors
+      document.querySelectorAll('.btn-playful').forEach(btn => {
+        if (btn.classList.contains('bg-gradient-to-r')) {
+          btn.style.background = `linear-gradient(135deg, ${buttonColor} 0%, ${accentColor} 100%)`;
+        }
+      });
+      
+      // Apply highlight color to star counter
+      const starCount = document.getElementById('star-count');
+      if (starCount) {
+        starCount.style.color = highlightColor;
+      }
+    }
+    
+    function adjustColor(hex, percent) {
+      const num = parseInt(hex.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = (num >> 16) + amt;
+      const G = (num >> 8 & 0x00FF) + amt;
+      const B = (num & 0x0000FF) + amt;
+      return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + 
+        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + 
+        (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+    }
+    
+    function initClocks() {
+      // Initialize main clock
+      createClockNumbers('clock-numbers');
+      createTickMarks('tick-marks');
+      createClockNumbers('practice-numbers');
+      createTickMarks('practice-ticks');
+      
+      updateClockHands(12, 0, 'main');
+      generateWorksheet();
+    }
+    
+    function createClockNumbers(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      
+      container.innerHTML = '';
+      
+      for (let i = 1; i <= 12; i++) {
+        const angle = (i * 30 - 90) * (Math.PI / 180);
+        const x = 140 + 100 * Math.cos(angle);
+        const y = 140 + 100 * Math.sin(angle) + 8;
+        
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x);
+        text.setAttribute('y', y);
+        text.textContent = i;
+        
+        // Highlight 12, 3, 6, 9
+        if ([12, 3, 6, 9].includes(i)) {
+          text.setAttribute('fill', '#7c3aed');
+          text.setAttribute('font-size', '26');
+        }
+        
+        container.appendChild(text);
+      }
+    }
+    
+    function createTickMarks(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      
+      container.innerHTML = '';
+      
+      for (let i = 0; i < 60; i++) {
+        const angle = (i * 6 - 90) * (Math.PI / 180);
+        const isMajor = i % 5 === 0;
+        const innerRadius = isMajor ? 115 : 125;
+        const outerRadius = 132;
+        
+        const x1 = 140 + innerRadius * Math.cos(angle);
+        const y1 = 140 + innerRadius * Math.sin(angle);
+        const x2 = 140 + outerRadius * Math.cos(angle);
+        const y2 = 140 + outerRadius * Math.sin(angle);
+        
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1);
+        line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2);
+        line.setAttribute('y2', y2);
+        line.setAttribute('stroke', isMajor ? '#7c3aed' : '#d1d5db');
+        line.setAttribute('stroke-width', isMajor ? '3' : '1');
+        
+        container.appendChild(line);
+      }
+    }
+    
+    function updateClockHands(hour, minute, clockType = 'main') {
+      const hourAngle = (hour % 12 + minute / 60) * 30;
+      const minuteAngle = minute * 6;
+      
+      const hourHand = document.getElementById(clockType === 'main' ? 'hour-hand' : 'practice-hour-hand');
+      const minuteHand = document.getElementById(clockType === 'main' ? 'minute-hand' : 'practice-minute-hand');
+      
+      if (hourHand) {
+        hourHand.style.transform = `rotate(${hourAngle}deg)`;
+        hourHand.style.transformOrigin = '140px 140px';
+      }
+      if (minuteHand) {
+        minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
+        minuteHand.style.transformOrigin = '140px 140px';
+      }
+      
+      if (clockType === 'main') {
+        currentHour = hour;
+        currentMinute = minute;
+        updateTimeDisplay();
+      }
+    }
+    
+    function updateTimeDisplay() {
+      const displayHour = currentHour === 0 ? 12 : (currentHour > 12 ? currentHour - 12 : currentHour);
+      const displayMinute = currentMinute.toString().padStart(2, '0');
+      
+      document.getElementById('time-display').textContent = `${displayHour}:${displayMinute}`;
+      document.getElementById('period-display').textContent = currentPeriod;
+    }
+    
+    function setPeriod(period) {
+      currentPeriod = period;
+      updateTimeDisplay();
+      
+      document.getElementById('am-btn').className = period === 'AM' 
+        ? 'px-3 py-2 rounded-lg font-bold text-sm bg-purple-500 text-white'
+        : 'px-3 py-2 rounded-lg font-bold text-sm bg-gray-200 text-gray-600';
+      document.getElementById('pm-btn').className = period === 'PM'
+        ? 'px-3 py-2 rounded-lg font-bold text-sm bg-purple-500 text-white'
+        : 'px-3 py-2 rounded-lg font-bold text-sm bg-gray-200 text-gray-600';
+    }
+    
+    function clearTimeInput() {
+      document.getElementById('hour-input').value = '';
+      document.getElementById('minute-input').value = '';
+    }
+    
+    function setTimeFromInput() {
+      const hourInput = parseInt(document.getElementById('hour-input').value) || 12;
+      const minuteInput = parseInt(document.getElementById('minute-input').value) || 0;
+      
+      const hour = Math.max(1, Math.min(12, hourInput));
+      const minute = Math.max(0, Math.min(59, minuteInput));
+      
+      updateClockHands(hour, minute, 'main');
+    }
+    
+    function generateRandomTime() {
+      let hour, minute;
+      
+      switch (difficulty) {
+        case 'beginner':
+          hour = Math.floor(Math.random() * 12) + 1;
+          minute = 0;
+          break;
+        case 'intermediate':
+          hour = Math.floor(Math.random() * 12) + 1;
+          minute = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
+          break;
+        case 'advanced':
+          hour = Math.floor(Math.random() * 12) + 1;
+          minute = Math.floor(Math.random() * 60);
+          break;
+      }
+      
+      updateClockHands(hour, minute, 'main');
+      
+      const displayMinute = minute.toString().padStart(2, '0');
+      document.getElementById('random-time-text').textContent = `Time set to ${hour}:${displayMinute} ${currentPeriod}`;
+    }
+    
+    function setDifficulty(level) {
+      difficulty = level;
+      
+      const descriptions = {
+        beginner: 'Full hours only (3:00, 5:00)',
+        intermediate: 'Half and quarter hours (3:30, 4:15)',
+        advanced: 'Any time (7:23, 9:48)'
+      };
+      
+      document.getElementById('difficulty-desc').textContent = descriptions[level];
+      
+      ['beginner', 'intermediate', 'advanced'].forEach(d => {
+        const btn = document.getElementById(`diff-${d}`);
+        const colors = {
+          beginner: { active: 'bg-green-500 text-white', inactive: 'bg-gray-200 text-gray-600' },
+          intermediate: { active: 'bg-yellow-500 text-white', inactive: 'bg-gray-200 text-gray-600' },
+          advanced: { active: 'bg-red-500 text-white', inactive: 'bg-gray-200 text-gray-600' }
+        };
+        
+        btn.className = `py-3 rounded-xl font-bold text-sm btn-playful ${d === level ? colors[d].active : colors[d].inactive}`;
+      });
+    }
+    
+    function toggleSecondHand() {
+      showSeconds = document.getElementById('show-seconds').checked;
+      const secondHand = document.getElementById('second-hand');
+      
+      if (showSeconds) {
+        secondHand.style.display = 'block';
+        startSecondHand();
+      } else {
+        secondHand.style.display = 'none';
+        if (secondInterval) clearInterval(secondInterval);
+      }
+    }
+    
+    function startSecondHand() {
+      if (secondInterval) clearInterval(secondInterval);
+      
+      function updateSecond() {
+        const now = new Date();
+        const seconds = now.getSeconds();
+        const angle = seconds * 6;
+        
+        const secondHand = document.getElementById('second-hand');
+        if (secondHand) {
+          secondHand.style.transform = `rotate(${angle}deg)`;
+          secondHand.style.transformOrigin = '140px 140px';
+        }
+      }
+      
+      updateSecond();
+      secondInterval = setInterval(updateSecond, 1000);
+    }
+    
+    function switchTab(tab) {
+      ['learn', 'practice', 'worksheet'].forEach(t => {
+        document.getElementById(`${t}-tab`).classList.toggle('hidden', t !== tab);
+        document.getElementById(`tab-${t}`).classList.toggle('tab-active', t === tab);
+        document.getElementById(`tab-${t}`).classList.toggle('bg-white', t !== tab);
+        document.getElementById(`tab-${t}`).classList.toggle('text-gray-600', t !== tab);
+      });
+      
+      if (tab === 'practice') {
+        newPracticeQuestion();
+      }
+    }
+    
+    function newPracticeQuestion() {
+      switch (difficulty) {
+        case 'beginner':
+          practiceHour = Math.floor(Math.random() * 12) + 1;
+          practiceMinute = 0;
+          break;
+        case 'intermediate':
+          practiceHour = Math.floor(Math.random() * 12) + 1;
+          practiceMinute = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
+          break;
+        case 'advanced':
+          practiceHour = Math.floor(Math.random() * 12) + 1;
+          practiceMinute = Math.floor(Math.random() * 60);
+          break;
+      }
+      
+      updateClockHands(practiceHour, practiceMinute, 'practice');
+      
+      document.getElementById('answer-hour').value = '';
+      document.getElementById('answer-minute').value = '';
+      document.getElementById('feedback-area').innerHTML = '';
+      document.getElementById('hint-area').classList.add('hidden');
+    }
+    
+    function checkAnswer() {
+      const answerHour = parseInt(document.getElementById('answer-hour').value);
+      const answerMinute = parseInt(document.getElementById('answer-minute').value) || 0;
+      
+      if (isNaN(answerHour)) {
+        showFeedback('Please enter the hour!', false);
+        return;
+      }
+      
+      const config = window.elementSdk?.config || defaultConfig;
+      const isCorrect = answerHour === practiceHour && answerMinute === practiceMinute;
+      
+      if (isCorrect) {
+        stars++;
+        correctAnswers++;
+        
+        document.getElementById('star-count').textContent = stars;
+        document.getElementById('correct-count').textContent = correctAnswers;
+        document.getElementById('progress-bar').style.width = `${correctAnswers * 10}%`;
+        
+        showFeedback(config.success_message || defaultConfig.success_message, true);
+        showStarAnimation();
+        
+        if (correctAnswers >= 10) {
+          levelUp();
+        }
+      } else {
+        showFeedback(config.try_again_message || defaultConfig.try_again_message, false);
+        showHint();
+      }
+    }
+    
+    function showFeedback(message, isSuccess) {
+      const feedbackArea = document.getElementById('feedback-area');
+      const bgClass = isSuccess ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700';
+      const icon = isSuccess ? '⭐' : '💪';
+      
+      feedbackArea.innerHTML = `
+        <div class="p-4 rounded-xl border-2 ${bgClass} ${isSuccess ? 'bounce-animation' : ''}">
+          <span class="text-3xl">${icon}</span>
+          <p class="text-xl font-bold mt-2">${message}</p>
+        </div>
+      `;
+    }
+    
+    function showHint() {
+      const hintArea = document.getElementById('hint-area');
+      const hintText = document.getElementById('hint-text');
+      
+      const hints = [
+        'Look at the short blue hand first - it shows the hour!',
+        'Count the minute marks by 5s: 5, 10, 15, 20...',
+        'The long red hand points to the minutes!',
+        `The short hand is near ${practiceHour}`,
+        practiceMinute === 0 ? 'The long hand points to 12 - that means :00!' : 
+        practiceMinute === 30 ? 'The long hand points to 6 - that means :30!' :
+        practiceMinute === 15 ? 'The long hand points to 3 - that means :15!' :
+        practiceMinute === 45 ? 'The long hand points to 9 - that means :45!' :
+        `Count from 12, each number is 5 minutes!`
+      ];
+      
+      hintText.textContent = hints[Math.floor(Math.random() * hints.length)];
+      hintArea.classList.remove('hidden');
+    }
+    
+    function showStarAnimation() {
+      const confettiContainer = document.getElementById('confetti-container');
+      const colors = ['#f59e0b', '#ef4444', '#8b5cf6', '#10b981', '#3b82f6', '#ec4899'];
+      
+      for (let i = 0; i < 20; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti-piece';
+        confetti.style.left = `${Math.random() * 100}%`;
+        confetti.style.top = '40%';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+        confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+        
+        confettiContainer.appendChild(confetti);
+        
+        setTimeout(() => confetti.remove(), 1500);
+      }
+    }
+    
+    function levelUp() {
+      level++;
+      correctAnswers = 0;
+      
+      document.getElementById('correct-count').textContent = '0';
+      document.getElementById('progress-bar').style.width = '0%';
+      document.getElementById('level-badge').textContent = `Level ${level}`;
+      document.getElementById('new-level').textContent = `Level ${level}`;
+      
+      document.getElementById('level-modal').classList.remove('hidden');
+      showStarAnimation();
+    }
+    
+    function closeModal() {
+      document.getElementById('level-modal').classList.add('hidden');
+    }
+    
+    function generateWorksheet() {
+      const clocksContainer = document.getElementById('worksheet-clocks');
+      const drawContainer = document.getElementById('worksheet-draw');
+      
+      // Generate 5 clocks with times to read
+      let clocksHTML = '';
+      for (let i = 0; i < 5; i++) {
+        const hour = Math.floor(Math.random() * 12) + 1;
+        const minute = difficulty === 'beginner' ? 0 : 
+                       difficulty === 'intermediate' ? [0, 15, 30, 45][Math.floor(Math.random() * 4)] :
+                       Math.floor(Math.random() * 12) * 5;
+        
+        clocksHTML += createWorksheetClock(hour, minute, true);
+      }
+      clocksContainer.innerHTML = clocksHTML;
+      
+      // Generate 5 times to draw
+      let drawHTML = '';
+      for (let i = 0; i < 5; i++) {
+        const hour = Math.floor(Math.random() * 12) + 1;
+        const minute = difficulty === 'beginner' ? 0 : 
+                       difficulty === 'intermediate' ? [0, 15, 30, 45][Math.floor(Math.random() * 4)] :
+                       Math.floor(Math.random() * 12) * 5;
+        
+        drawHTML += createWorksheetClock(hour, minute, false);
+      }
+      drawContainer.innerHTML = drawHTML;
+    }
+    
+    function createWorksheetClock(hour, minute, showHands) {
+      const hourAngle = (hour % 12 + minute / 60) * 30;
+      const minuteAngle = minute * 6;
+      
+      return `
+        <div class="flex flex-col items-center">
+          <svg width="100" height="100" viewBox="0 0 100 100" class="border-2 border-gray-300 rounded-full">
+            <circle cx="50" cy="50" r="45" fill="white" stroke="#9ca3af" stroke-width="2"/>
+            ${[1,2,3,4,5,6,7,8,9,10,11,12].map(n => {
+              const angle = (n * 30 - 90) * (Math.PI / 180);
+              const x = 50 + 35 * Math.cos(angle);
+              const y = 50 + 35 * Math.sin(angle) + 3;
+              return `<text x="${x}" y="${y}" font-size="8" text-anchor="middle" fill="#374151" font-weight="bold">${n}</text>`;
+            }).join('')}
+            ${showHands ? `
+              <line x1="50" y1="50" x2="${50 + 20 * Math.sin(hourAngle * Math.PI / 180)}" y2="${50 - 20 * Math.cos(hourAngle * Math.PI / 180)}" stroke="#3b82f6" stroke-width="4" stroke-linecap="round"/>
+              <line x1="50" y1="50" x2="${50 + 32 * Math.sin(minuteAngle * Math.PI / 180)}" y2="${50 - 32 * Math.cos(minuteAngle * Math.PI / 180)}" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+            ` : ''}
+            <circle cx="50" cy="50" r="3" fill="#374151"/>
+          </svg>
+          <div class="mt-2 text-center">
+            ${showHands ? 
+              `<div class="border-b-2 border-gray-400 w-16 h-6"></div>` :
+              `<div class="font-bold text-sm">${hour}:${minute.toString().padStart(2, '0')}</div>`
+            }
+          </div>
+        </div>
+      `;
+    }
+    
+    // Initialize app
+    initApp();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9ccc3b7aa73e17d7',t:'MTc3MDkwMDg0My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
